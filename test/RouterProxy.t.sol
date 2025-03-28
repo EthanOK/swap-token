@@ -82,7 +82,7 @@ contract RouterProxyTest is Test {
 
         uint256 balance = IERC20(WETH).balanceOf(user);
 
-        console.log("user WETH balance: ", balance / 1e18);
+        console.log("user WETH balance: ", balance);
 
         assertGt(balance, 0);
 
