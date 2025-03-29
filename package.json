@@ -1,0 +1,27 @@
+{
+  "name": "swap-token",
+  "version": "1.0.0",
+  "description": "## uniswap v2 swap",
+  "main": "index.js",
+  "directories": {
+    "lib": "lib",
+    "test": "test"
+  },
+  "scripts": {
+    "prepare": "husky install",
+    "test": "forge test -vvv"
+  },
+  "lint-staged": {
+    "*.sol": [
+      "forge fmt",
+      "git add"
+    ]
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^15.5.0"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
