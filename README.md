@@ -2,7 +2,7 @@
 
 ## uniswap v2 swap
 
-[RouterProxy](./src/RouterProxy.sol)
+[ProxyUniswapV2](./src/ProxyUniswapV2.sol)
 
 ### eth swap token and deduct proxy fee
 

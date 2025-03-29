@@ -9,7 +9,8 @@
   },
   "scripts": {
     "prepare": "husky install",
-    "test": "forge test -vvv"
+    "test all": "forge test -vvv",
+    "test ProxyUniswapV2": "forge test --match-contract ProxyUniswapV2Test -vvv"
   },
   "lint-staged": {
     "*.sol": [

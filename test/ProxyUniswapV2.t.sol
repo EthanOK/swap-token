@@ -5,7 +5,7 @@ import {Test, console} from "forge-std/Test.sol";
 import {ProxyUniswapV2, IUniswapV2Router02, IERC20, SafeERC20} from "../src/ProxyUniswapV2.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-contract RouterProxyTest is Test {
+contract ProxyUniswapV2Test is Test {
     using SafeERC20 for IERC20;
 
     ProxyUniswapV2 public router;
