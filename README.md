@@ -57,6 +57,24 @@
 
 [using-flash-swaps](https://docs.uniswap.org/contracts/v2/guides/smart-contract-integration/using-flash-swaps)
 
+手续费 计算公式
+
+```
+amount1In = balance1 - (_reserve1 - amount1Out) = (balance1 - _reserve1) + amount1Out;
+
+fee =  balance1 - _reserve1;
+
+1000 * balance1 - 3 * amount1In >=  _reserve1 * 1000;
+
+(balance1 - _reserve1) * 1000 >= 3 * amount1In;
+
+(balance1 - _reserve1) * 1000 >= 3 * ((balance1 - _reserve1) + amount1Out);
+
+fee * 1000 >= 3 * (fee + amount1Out);
+
+fee  >=  amount1Out * 3/997;
+```
+
 ```solidity
 
     function uniswapV2Call(address sender, uint256 amount0, uint256 amount1, bytes calldata data) external {
