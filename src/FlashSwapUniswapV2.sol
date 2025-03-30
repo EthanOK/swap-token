@@ -5,14 +5,54 @@ import {IUniswapV2Pair} from "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pa
 import {IUniswapV2Callee} from "@uniswap/v2-core/contracts/interfaces/IUniswapV2Callee.sol";
 import {IUniswapV2Factory} from "@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
 import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IUniswapV2Router02} from "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
+import {Address} from "@openzeppelin/contracts/utils/Address.sol";
+import {TransferHelper} from "./libraries/TransferHelper.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-contract FlashSwapUniswapV2 is IUniswapV2Callee {
+contract FlashSwapUniswapV2 is IUniswapV2Callee, Ownable {
     using SafeERC20 for IERC20;
+    using Address for address;
+
+    struct CallParam {
+        address target;
+        uint256 value;
+        bytes data;
+    }
 
     IUniswapV2Factory public immutable factory;
 
-    constructor(address _factory) {
+    IUniswapV2Router02 public immutable uniswapRouter;
+
+    constructor(address _factory, address _uniswapRouter, address _initialOwner) Ownable(_initialOwner) {
         factory = IUniswapV2Factory(_factory);
+        uniswapRouter = IUniswapV2Router02(_uniswapRouter);
+    }
+
+    function swapETHForExactTokens(address tokenOut, uint256 amountOut) external payable returns (uint256) {
+        require(msg.value > 0, "Invalid amountIn");
+
+        require(amountOut > 0, "Invalid amountOut");
+        require(tokenOut != address(0), "Invalid tokenOut address");
+
+        address[] memory path = new address[](2);
+        path[0] = uniswapRouter.WETH();
+        path[1] = tokenOut;
+
+        uint256 balanceBefore = IERC20(tokenOut).balanceOf(address(this));
+
+        uint256[] memory amounts = uniswapRouter.getAmountsIn(amountOut, path);
+        require(amounts[0] <= msg.value, "FlashSwapUniswapV2: EXCESSIVE_INPUT_AMOUNT");
+
+        uniswapRouter.swapETHForExactTokens{value: msg.value}(
+            amountOut, path, address(msg.sender), block.timestamp + 60
+        );
+
+        uint256 balanceAfter = IERC20(tokenOut).balanceOf(address(this));
+
+        if (msg.value > amounts[0]) TransferHelper.safeTransferETH(msg.sender, msg.value - amounts[0]);
+
+        return balanceAfter - balanceBefore;
     }
 
     function flashSwap(address _token0, address _token1, uint256 _amount0, uint256 _amount1, bytes calldata data)
@@ -23,9 +63,21 @@ contract FlashSwapUniswapV2 is IUniswapV2Callee {
         address token0_ = IUniswapV2Pair(pair).token0();
         address token1_ = IUniswapV2Pair(pair).token1();
 
+        uint256 _balance0_before = IERC20(token0_).balanceOf(address(this));
+        uint256 _balance1_before = IERC20(token1_).balanceOf(address(this));
+
         IUniswapV2Pair(pair).swap(
             token0_ == _token0 ? _amount0 : _amount1, token1_ == _token1 ? _amount1 : _amount0, address(this), data
         );
+
+        uint256 _balance0_after = IERC20(token0_).balanceOf(address(this));
+        uint256 _balance1_after = IERC20(token1_).balanceOf(address(this));
+        if (_balance0_after > _balance0_before) {
+            IERC20(token0_).safeTransfer(msg.sender, _balance0_after - _balance0_before);
+        }
+        if (_balance1_after > _balance1_before) {
+            IERC20(token1_).safeTransfer(msg.sender, _balance1_after - _balance1_before);
+        }
     }
 
     function uniswapV2Call(address sender, uint256 amount0, uint256 amount1, bytes calldata data) external {
@@ -39,16 +91,28 @@ contract FlashSwapUniswapV2 is IUniswapV2Callee {
 
         // TODO: DO Flash
 
-        abi.decode(data, (address));
+        (CallParam memory callParam) = abi.decode(data, (CallParam));
+
+        (callParam.target).functionCallWithValue(callParam.data, callParam.value);
 
         if (amount0 > 0) {
-            payAmount = amount0 * (1000 + 3) / 1000;
+            payAmount = amount0 * 1000 / 997 + 1;
             IERC20(token0).safeTransfer(pair, payAmount);
         }
 
         if (amount1 > 0) {
-            payAmount = amount1 * (1000 + 3) / 1000;
+            payAmount = amount1 * 1000 / 997 + 1;
             IERC20(token1).safeTransfer(pair, payAmount);
         }
     }
+
+    function rescueTokens(address token, uint256 amount) external onlyOwner {
+        IERC20(token).safeTransfer(owner(), amount);
+    }
+
+    function rescueETH() external onlyOwner {
+        payable(owner()).transfer(address(this).balance);
+    }
+
+    receive() external payable {}
 }
