@@ -2,9 +2,17 @@
 pragma solidity ^0.8.13;
 
 import {Test, console} from "forge-std/Test.sol";
-import {ProxyUniswapV3} from "../src/ProxyUniswapV3.sol";
+import {ProxyUniswapV3, TransferHelper} from "../src/ProxyUniswapV3.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IQuoterV2} from "@uniswap/v3-periphery/contracts/interfaces/IQuoterV2.sol";
+
+interface IWETH9 is IERC20 {
+    /// @notice Deposit ether to get wrapped ether
+    function deposit() external payable;
+
+    /// @notice Withdraw wrapped ether to get ether
+    function withdraw(uint256) external;
+}
 
 contract ProxyUniswapV3Test is Test {
     ProxyUniswapV3 public proxy;
@@ -49,12 +57,47 @@ contract ProxyUniswapV3Test is Test {
         // 0.05% 500
         proxy.swapExactETHForTokenWithFee{value: payAmount}(USDT, 0, 500, user);
 
-        uint256 balance_user = IERC20(USDT).balanceOf(user);
-
         console.log("Deduct %d % Proxy Fees After:", proxy.feePercent());
+
+        uint256 balance_user = IERC20(USDT).balanceOf(user);
 
         console.log("user Get USDT: ", balance_user);
 
         vm.stopPrank();
+    }
+
+    function test_SwapExactTokenForTokenWithFee() public {
+        vm.startPrank(user);
+        uint256 payAmount = 1 ether;
+        IWETH9(WETH).deposit{value: payAmount}();
+
+        uint256 balance_weth = IERC20(WETH).balanceOf(user);
+
+        assertEq(balance_weth, payAmount);
+
+        IQuoterV2.QuoteExactInputSingleParams memory quoterParams = IQuoterV2.QuoteExactInputSingleParams({
+            tokenIn: WETH,
+            tokenOut: USDC,
+            amountIn: payAmount,
+            fee: 500,
+            sqrtPriceLimitX96: 0
+        });
+
+        (uint256 amountOut,,,) = IQuoterV2(quoterV2).quoteExactInputSingle(quoterParams);
+        console.log("WETH/USDC: ", amountOut);
+
+        console.log("user Pay 1 WETH");
+
+        TransferHelper.safeApprove(WETH, address(proxy), payAmount);
+
+        proxy.swapExactTokenForTokenWithFee(WETH, USDC, payAmount, 0, 500, user);
+
+        assertEq(IERC20(WETH).balanceOf(user), 0);
+
+        console.log("Deduct %d % Proxy Fees After:", proxy.feePercent());
+
+        uint256 balance_user_usdc = IERC20(USDC).balanceOf(user);
+
+        console.log("user Get USDC: ", balance_user_usdc);
     }
 }
