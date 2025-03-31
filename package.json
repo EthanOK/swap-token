@@ -11,7 +11,8 @@
     "prepare": "husky install",
     "test all": "forge test -vvv",
     "test ProxyUniswapV2": "forge test --match-contract ProxyUniswapV2Test -vvv",
-    "test FlashSwapUniswapV2": "forge test --match-contract FlashSwapUniswapV2Test -vvv"
+    "test FlashSwapUniswapV2": "forge test --match-contract FlashSwapUniswapV2Test -vvv",
+    "test ProxyUniswapV3": "forge test --match-contract ProxyUniswapV3Test -vvv"
   },
   "lint-staged": {
     "*.sol": [
