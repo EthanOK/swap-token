@@ -12,17 +12,25 @@ contract ProxyUniswapV3 is Ownable {
         address indexed tokenIn, address indexed tokenOut, uint256 amountIn, uint256 amountOut, address recipient
     );
 
+    struct TokenOutInfo {
+        uint24 poolFee;
+        address tokenOut;
+    }
+
     ISwapRouter public immutable swapRouter;
 
     uint256 public feePercent = 50;
+
+    uint256 public feeBase = 100;
 
     constructor(address _swapRouter, address _initialOwner) Ownable(_initialOwner) {
         swapRouter = ISwapRouter(_swapRouter);
     }
 
-    function setFeePercent(uint256 _percent) external onlyOwner {
-        require(_percent <= 100, "Fee cannot exceed 100%");
+    function setFeePercent(uint256 _percent, uint256 _base) external onlyOwner {
+        require(_percent <= _base, "Fee cannot exceed  feeBase%");
         feePercent = _percent;
+        feeBase = _base;
     }
 
     /// @notice Swap exact ETH for token, and deduct fee
@@ -44,14 +52,14 @@ contract ProxyUniswapV3 is Ownable {
             tokenOut: tokenOut,
             fee: fee,
             recipient: address(this),
-            deadline: block.timestamp + 100,
+            deadline: block.timestamp,
             amountIn: amountIn,
             amountOutMinimum: amountOutMin,
             sqrtPriceLimitX96: 0 // No Price Limit
         });
 
         uint256 amountOut = swapRouter.exactInputSingle{value: amountIn}(params);
-        uint256 feeAmount = (amountOut * feePercent) / 100;
+        uint256 feeAmount = (amountOut * feePercent) / feeBase;
         uint256 userAmount = amountOut - feeAmount;
 
         require(userAmount >= amountOutMin, "AmountOutMin not met");
@@ -92,7 +100,7 @@ contract ProxyUniswapV3 is Ownable {
             tokenOut: tokenOut,
             fee: fee,
             recipient: address(this),
-            deadline: block.timestamp + 100,
+            deadline: block.timestamp,
             amountIn: amountIn,
             amountOutMinimum: amountOutMin,
             sqrtPriceLimitX96: 0 // No Price Limit
@@ -100,7 +108,7 @@ contract ProxyUniswapV3 is Ownable {
 
         uint256 amountOut = swapRouter.exactInputSingle(params);
 
-        uint256 feeAmount = (amountOut * feePercent) / 100;
+        uint256 feeAmount = (amountOut * feePercent) / feeBase;
         uint256 userAmount = amountOut - feeAmount;
 
         require(userAmount >= amountOutMin, "AmountOutMin not met");
@@ -140,7 +148,7 @@ contract ProxyUniswapV3 is Ownable {
             tokenOut: tokenOut,
             fee: fee,
             recipient: address(this),
-            deadline: block.timestamp + 100,
+            deadline: block.timestamp,
             amountIn: amountIn,
             amountOutMinimum: amountOutMin,
             sqrtPriceLimitX96: 0 // No Price Limit
@@ -151,7 +159,7 @@ contract ProxyUniswapV3 is Ownable {
         // WETH Swap ETH
         IWETH9(tokenOut).withdraw(amountOut);
 
-        uint256 feeAmount = (amountOut * feePercent) / 100;
+        uint256 feeAmount = (amountOut * feePercent) / feeBase;
         uint256 userAmount = amountOut - feeAmount;
 
         require(userAmount >= amountOutMin, "AmountOutMin not met");
@@ -161,6 +169,168 @@ contract ProxyUniswapV3 is Ownable {
 
         emit ProxySwapV3(tokenIn, address(0), amountIn, userAmount, recipient);
 
+        return userAmount;
+    }
+
+    /// @notice Swap exact ETH for Tokens, and deduct fee
+    /// @param tokenOutInfos TokenOutInfos
+    /// @param amountOutMin Minimum number of tokens expected to be obtained
+    /// @param recipient To address
+    function swapExactETHForTokensWithFee(
+        TokenOutInfo[] calldata tokenOutInfos,
+        uint256 amountOutMin,
+        address recipient
+    ) external payable returns (uint256) {
+        uint256 tokens_len = tokenOutInfos.length;
+        require(tokens_len > 0, "Invalid tokenOutInfos");
+        uint256 amountIn = msg.value;
+        require(amountIn > 0, "Invalid amountIn");
+        address tokenIn = IPeripheryImmutableState(address(swapRouter)).WETH9();
+        address tokenOut = tokenOutInfos[tokens_len - 1].tokenOut;
+        require(tokenOut != address(0), "Invalid tokenOut address");
+
+        bytes memory path = abi.encodePacked(tokenIn, tokenOutInfos[0].poolFee, tokenOutInfos[0].tokenOut);
+
+        for (uint256 i = 1; i < tokens_len;) {
+            path = abi.encodePacked(path, tokenOutInfos[i].poolFee, tokenOutInfos[i].tokenOut);
+
+            unchecked {
+                ++i;
+            }
+        }
+
+        ISwapRouter.ExactInputParams memory params = ISwapRouter.ExactInputParams({
+            path: path,
+            recipient: address(this),
+            deadline: block.timestamp,
+            amountIn: amountIn,
+            amountOutMinimum: amountOutMin
+        });
+
+        uint256 amountOut = swapRouter.exactInput{value: amountIn}(params);
+        uint256 feeAmount = (amountOut * feePercent) / feeBase;
+        uint256 userAmount = amountOut - feeAmount;
+
+        require(userAmount > amountOutMin, "AmountOutMin not met");
+
+        // Transfer Token
+        TransferHelper.safeTransfer(tokenOut, recipient, userAmount);
+        TransferHelper.safeTransfer(tokenOut, owner(), feeAmount);
+
+        emit ProxySwapV3(address(0), tokenOut, amountIn, userAmount, recipient);
+
+        return userAmount;
+    }
+
+    /// @notice Swap exact token for tokens, and deduct fee
+    /// @param tokenIn TokenIn
+    /// @param tokenOutInfos TokenOutInfos
+    /// @param amountIn AmountIn
+    /// @param amountOutMin Minimum number of tokens expected to be obtained
+    /// @param recipient To address
+    function swapExactTokenForTokensWithFee(
+        address tokenIn,
+        TokenOutInfo[] calldata tokenOutInfos,
+        uint256 amountIn,
+        uint256 amountOutMin,
+        address recipient
+    ) external returns (uint256) {
+        uint256 tokens_len = tokenOutInfos.length;
+        require(tokens_len > 0, "Invalid tokenOutInfos");
+        require(amountIn > 0, "Invalid amountIn");
+        require(tokenIn != address(0), "Invalid tokenIn address");
+        require(recipient != address(0), "Invalid recipient");
+        address tokenOut = tokenOutInfos[tokens_len - 1].tokenOut;
+        require(tokenOut != address(0), "Invalid tokenOut address");
+
+        bytes memory path = abi.encodePacked(tokenIn, tokenOutInfos[0].poolFee, tokenOutInfos[0].tokenOut);
+
+        for (uint256 i = 1; i < tokens_len;) {
+            path = abi.encodePacked(path, tokenOutInfos[i].poolFee, tokenOutInfos[i].tokenOut);
+
+            unchecked {
+                ++i;
+            }
+        }
+
+        ISwapRouter.ExactInputParams memory params = ISwapRouter.ExactInputParams({
+            path: path,
+            recipient: address(this),
+            deadline: block.timestamp,
+            amountIn: amountIn,
+            amountOutMinimum: amountOutMin
+        });
+
+        TransferHelper.safeTransferFrom(tokenIn, msg.sender, address(this), amountIn);
+        TransferHelper.safeApprove(tokenIn, address(swapRouter), amountIn);
+
+        uint256 amountOut = swapRouter.exactInput(params);
+
+        uint256 feeAmount = (amountOut * feePercent) / feeBase;
+        uint256 userAmount = amountOut - feeAmount;
+
+        require(userAmount >= amountOutMin, "AmountOutMin not met");
+        TransferHelper.safeTransfer(tokenOut, recipient, userAmount);
+        TransferHelper.safeTransfer(tokenOut, owner(), feeAmount);
+
+        emit ProxySwapV3(tokenIn, tokenOut, amountIn, userAmount, recipient);
+        return userAmount;
+    }
+
+    /// @notice Swap exact token for ETH, and deduct fee
+    /// @param tokenIn TokenIn
+    /// @param tokenOutInfos TokenOutInfos
+    /// @param amountIn AmountIn
+    /// @param amountOutMin Minimum number of tokens expected to be obtained
+    /// @param recipient To address
+    function swapExactTokenForETHsWithFee(
+        address tokenIn,
+        TokenOutInfo[] calldata tokenOutInfos,
+        uint256 amountIn,
+        uint256 amountOutMin,
+        address recipient
+    ) external returns (uint256) {
+        uint256 tokens_len = tokenOutInfos.length;
+        require(tokens_len > 0, "Invalid tokenOutInfos");
+        require(amountIn > 0, "Invalid amountIn");
+        require(tokenIn != address(0), "Invalid tokenIn address");
+        require(recipient != address(0), "Invalid recipient");
+        address tokenOut = tokenOutInfos[tokens_len - 1].tokenOut;
+        require(tokenOut == IPeripheryImmutableState(address(swapRouter)).WETH9(), "Invalid tokenOut address");
+
+        bytes memory path = abi.encodePacked(tokenIn, tokenOutInfos[0].poolFee, tokenOutInfos[0].tokenOut);
+
+        for (uint256 i = 1; i < tokens_len;) {
+            path = abi.encodePacked(path, tokenOutInfos[i].poolFee, tokenOutInfos[i].tokenOut);
+
+            unchecked {
+                ++i;
+            }
+        }
+        ISwapRouter.ExactInputParams memory params = ISwapRouter.ExactInputParams({
+            path: path,
+            recipient: address(this),
+            deadline: block.timestamp,
+            amountIn: amountIn,
+            amountOutMinimum: amountOutMin
+        });
+
+        TransferHelper.safeTransferFrom(tokenIn, msg.sender, address(this), amountIn);
+        TransferHelper.safeApprove(tokenIn, address(swapRouter), amountIn);
+
+        uint256 amountOut = swapRouter.exactInput(params);
+
+        // WETH Swap ETH
+        IWETH9(tokenOut).withdraw(amountOut);
+
+        uint256 feeAmount = (amountOut * feePercent) / feeBase;
+        uint256 userAmount = amountOut - feeAmount;
+        require(userAmount >= amountOutMin, "AmountOutMin not met");
+
+        TransferHelper.safeTransferETH(recipient, userAmount);
+        TransferHelper.safeTransferETH(owner(), feeAmount);
+
+        emit ProxySwapV3(tokenIn, address(0), amountIn, userAmount, recipient);
         return userAmount;
     }
 

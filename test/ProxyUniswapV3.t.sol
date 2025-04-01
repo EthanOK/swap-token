@@ -15,10 +15,13 @@ contract ProxyUniswapV3Test is Test {
     address public constant USDT = 0xdAC17F958D2ee523a2206206994597C13D831ec7;
     address public constant USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     address public constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    address public constant LINK = 0x514910771AF9Ca656af840dff83E8264EcF986CA;
 
     address public constant owner = address(0xdddd);
 
     address public constant user = address(0xeeee);
+
+    address public recipient = address(0xaaaa);
 
     function setUp() public {
         vm.createSelectFork("https://1rpc.io/eth");
@@ -94,7 +97,6 @@ contract ProxyUniswapV3Test is Test {
     }
 
     function test_SwapExactTokenForETHWithFee() public {
-        address recipient = address(0xaaaa);
         vm.startPrank(user);
         uint256 payAmount = 1 ether;
 
@@ -113,7 +115,76 @@ contract ProxyUniswapV3Test is Test {
         uint256 recipientAmountOut = proxy.swapExactTokenForETHWithFee(USDC, userAmountOut, 0, 500, recipient);
         console.log("Deduct %d % Proxy Fees After:", proxy.feePercent());
         assertEq(recipientAmountOut, (recipient).balance);
-        console.log("recipient Get ETH: ", recipientAmountOut);
+        console.log("recipient Get ETH: ", recipientAmountOut / 1e18, ".", recipientAmountOut % 1e18);
         vm.stopPrank();
+    }
+
+    function test_SwapExactETHForTokensWithFee() public {
+        vm.startPrank(user);
+        uint256 payAmount = 1 ether;
+
+        console.log("user Pay 1 ETH");
+        console.log("Swap Path: ETH -> USDT -> LINK");
+
+        ProxyUniswapV3.TokenOutInfo[] memory tokenOutInfos = new ProxyUniswapV3.TokenOutInfo[](2);
+        // ETH -> USDT (0.05%=fee/1e6) fee = 500
+        tokenOutInfos[0] = ProxyUniswapV3.TokenOutInfo({poolFee: 500, tokenOut: USDT});
+        // USDT -> LINK (0.3%=fee/1e6_ fee = 3000
+        tokenOutInfos[1] = ProxyUniswapV3.TokenOutInfo({poolFee: 3000, tokenOut: LINK});
+
+        uint256 userAmountOut = proxy.swapExactETHForTokensWithFee{value: payAmount}(tokenOutInfos, 0, user);
+        console.log("Deduct %d % Proxy Fees After:", proxy.feePercent());
+        uint256 balance_user_link = IERC20(LINK).balanceOf(user);
+        assertEq(balance_user_link, userAmountOut);
+        console.log("user Get LINK: ", balance_user_link / 1e18, ".", balance_user_link % 1e18);
+        vm.stopPrank();
+    }
+
+    function test_SwapExactTokenForTokensWithFee() public {
+        vm.startPrank(user);
+        uint256 amountIn = 1 ether;
+
+        console.log("user Pay 1 WETH");
+        console.log("Swap Path: WETH -> USDT -> LINK");
+
+        // eth -> weth
+        IWETH9(WETH).deposit{value: amountIn}();
+        // approve weth
+        TransferHelper.safeApprove(WETH, address(proxy), amountIn);
+
+        ProxyUniswapV3.TokenOutInfo[] memory tokenOutInfos = new ProxyUniswapV3.TokenOutInfo[](2);
+        // WETH -> USDT (0.05%=fee/1e6) fee = 500
+        tokenOutInfos[0] = ProxyUniswapV3.TokenOutInfo({poolFee: 500, tokenOut: USDT});
+        // USDT -> LINK (0.3%=fee/1e6_ fee = 3000
+        tokenOutInfos[1] = ProxyUniswapV3.TokenOutInfo({poolFee: 3000, tokenOut: LINK});
+
+        uint256 userAmountOut = proxy.swapExactTokenForTokensWithFee(WETH, tokenOutInfos, amountIn, 0, user);
+        console.log("Deduct %d % Proxy Fees After:", proxy.feePercent());
+        uint256 balance_user_link = IERC20(LINK).balanceOf(user);
+        assertEq(balance_user_link, userAmountOut);
+        console.log("user Get LINK: ", balance_user_link / 1e18, ".", balance_user_link % 1e18);
+        vm.stopPrank();
+    }
+
+    function test_SwapExactTokenForETHsWithFee() public {
+        vm.startPrank(user);
+        uint256 amountIn = 1 ether;
+        console.log("user Pay 1 WETH");
+        console.log("Swap Path: WETH -> USDT -> ETH");
+        IWETH9(WETH).deposit{value: amountIn}();
+        TransferHelper.safeApprove(WETH, address(proxy), amountIn);
+
+        ProxyUniswapV3.TokenOutInfo[] memory tokenOutInfos = new ProxyUniswapV3.TokenOutInfo[](2);
+        // WETH -> USDT (0.05%=fee/1e6) fee = 500
+        tokenOutInfos[0] = ProxyUniswapV3.TokenOutInfo({poolFee: 500, tokenOut: USDT});
+        // USDT -> WETH
+        tokenOutInfos[1] = ProxyUniswapV3.TokenOutInfo({poolFee: 500, tokenOut: WETH});
+
+        TransferHelper.safeApprove(WETH, address(proxy), amountIn);
+        uint256 userAmountOut = proxy.swapExactTokenForETHsWithFee(WETH, tokenOutInfos, amountIn, 0, recipient);
+
+        console.log("Deduct %d % Proxy Fees After:", proxy.feePercent());
+        assertEq(recipient.balance, userAmountOut);
+        console.log("recipient Get ETH: ", recipient.balance / 1e18, ".", recipient.balance % 1e18);
     }
 }
