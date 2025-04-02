@@ -57,6 +57,7 @@ contract FlashSwapUniswapV2 is IUniswapV2Callee, Ownable {
 
     function flashSwap(address _token0, address _token1, uint256 _amount0, uint256 _amount1, bytes calldata data)
         external
+        payable
     {
         address pair = factory.getPair(_token0, _token1);
         require(pair != address(0), "Pair does not exist");
