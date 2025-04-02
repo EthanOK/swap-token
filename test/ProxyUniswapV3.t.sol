@@ -98,18 +98,15 @@ contract ProxyUniswapV3Test is Test {
 
     function test_SwapExactTokenForETHWithFee() public {
         vm.startPrank(user);
-        uint256 payAmount = 1 ether;
 
-        console.log("user Pay 1 ETH");
+        uint256 usdc_decimals = 6;
 
-        // ETH -> USDC
-        uint256 userAmountOut = proxy.swapExactETHForTokenWithFee{value: payAmount}(USDC, 0, 500, user);
-        console.log("Deduct %d % Proxy Fees After:", proxy.feePercent());
-        uint256 balance_user_usdc = IERC20(USDC).balanceOf(user);
-        assertEq(balance_user_usdc, userAmountOut);
-        console.log("user Get USDC: ", balance_user_usdc);
+        deal(USDC, user, 1000 * 10 ** usdc_decimals);
 
-        console.log("recipient continue to swap USDC -> ETH");
+        uint256 userAmountOut = IERC20(USDC).balanceOf(user);
+        console.log("user Pay USDC: ", userAmountOut);
+
+        console.log("USDC -> ETH");
         // USDC -> ETH
         TransferHelper.safeApprove(USDC, address(proxy), userAmountOut);
         uint256 recipientAmountOut = proxy.swapExactTokenForETHWithFee(USDC, userAmountOut, 0, 500, recipient);

@@ -3,11 +3,11 @@ pragma solidity ^0.8.20;
 
 import {IUniswapV2Router02} from "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
+import {TransferHelper} from "./libraries/TransferHelper.sol";
 
 contract ProxyUniswapV2 is Ownable {
-    using SafeERC20 for IERC20;
     using Address for address payable;
 
     IUniswapV2Router02 public immutable uniswapRouter;
@@ -55,7 +55,8 @@ contract ProxyUniswapV2 is Ownable {
         uint256 feeAmount = (receivedToken * feePercent) / 100;
         uint256 userAmount = receivedToken - feeAmount;
 
-        IERC20(tokenOut).safeTransfer(to, userAmount);
+        TransferHelper.safeTransfer(tokenOut, to, userAmount);
+        TransferHelper.safeTransfer(tokenOut, owner(), feeAmount);
 
         return userAmount;
     }
@@ -79,11 +80,8 @@ contract ProxyUniswapV2 is Ownable {
         require(tokenOut != address(0), "Invalid output token address");
         require(to != address(0), "Invalid recipient");
 
-        // Transfer the input tokens from the user to this contract
-        IERC20(tokenIn).safeTransferFrom(msg.sender, address(this), amountIn);
-
-        // Approve the Uniswap router to spend the input tokens
-        IERC20(tokenIn).safeIncreaseAllowance(address(uniswapRouter), amountIn);
+        TransferHelper.safeTransferFrom(tokenIn, msg.sender, address(this), amountIn);
+        TransferHelper.safeApprove(tokenIn, address(uniswapRouter), amountIn);
 
         uint256 deadline = block.timestamp + 100;
 
@@ -101,7 +99,8 @@ contract ProxyUniswapV2 is Ownable {
         uint256 userAmount = receivedToken - feeAmount;
 
         // Transfer the output tokens to the user
-        IERC20(tokenOut).safeTransfer(to, userAmount);
+        TransferHelper.safeTransfer(tokenOut, to, userAmount);
+        TransferHelper.safeTransfer(tokenOut, owner(), feeAmount);
 
         return userAmount;
     }
@@ -122,8 +121,8 @@ contract ProxyUniswapV2 is Ownable {
         require(tokenIn != address(0), "Invalid input token address");
         require(to != address(0), "Invalid recipient");
 
-        IERC20(tokenIn).safeTransferFrom(msg.sender, address(this), amountIn);
-        IERC20(tokenIn).safeIncreaseAllowance(address(uniswapRouter), amountIn);
+        TransferHelper.safeTransferFrom(tokenIn, msg.sender, address(this), amountIn);
+        TransferHelper.safeApprove(tokenIn, address(uniswapRouter), amountIn);
         uint256 deadline = block.timestamp + 100;
 
         uint256 beforeBalance = address(this).balance;
@@ -136,17 +135,18 @@ contract ProxyUniswapV2 is Ownable {
         uint256 feeAmount = (receivedETH * feePercent) / 100;
         uint256 userAmount = receivedETH - feeAmount;
 
-        payable(to).sendValue(userAmount);
+        TransferHelper.safeTransferETH(to, userAmount);
+        TransferHelper.safeTransferETH(owner(), feeAmount);
 
         return userAmount;
     }
 
     function rescueTokens(address token, uint256 amount) external onlyOwner {
-        IERC20(token).safeTransfer(owner(), amount);
+        TransferHelper.safeTransfer(token, owner(), amount);
     }
 
     function rescueETH() external onlyOwner {
-        payable(owner()).transfer(address(this).balance);
+        TransferHelper.safeTransferETH(owner(), address(this).balance);
     }
 
     receive() external payable {}
