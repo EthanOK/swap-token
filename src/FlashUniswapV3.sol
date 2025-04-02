@@ -6,6 +6,7 @@ import {IUniswapV3FlashCallback} from "@uniswap/v3-core/contracts/interfaces/cal
 import {IUniswapV3Factory} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
 import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import {TransferHelper} from "@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 
 contract FlashUniswapV3 is Ownable, IUniswapV3FlashCallback {
@@ -23,6 +24,12 @@ contract FlashUniswapV3 is Ownable, IUniswapV3FlashCallback {
         address target;
         uint256 targetCallValue;
         bytes targetCallData;
+    }
+
+    struct CallParam {
+        address target;
+        uint256 value;
+        bytes data;
     }
 
     constructor(address _factory, address _WETH9, address _initialOwner) Ownable(_initialOwner) {
@@ -49,7 +56,10 @@ contract FlashUniswapV3 is Ownable, IUniswapV3FlashCallback {
 
         require(pool != address(0), "Pool Not Exists");
 
-        (address target, bytes memory targetCallData) = abi.decode(data, (address, bytes));
+        uint256 _balance0_before = IERC20(token0).balanceOf(address(this));
+        uint256 _balance1_before = IERC20(token1).balanceOf(address(this));
+
+        CallParam memory callParam = abi.decode(data, (CallParam));
 
         bytes memory flash_data = abi.encode(
             FlashCallbackData({
@@ -58,13 +68,22 @@ contract FlashUniswapV3 is Ownable, IUniswapV3FlashCallback {
                 amount0: amount0,
                 amount1: amount1,
                 pool: pool,
-                target: target,
-                targetCallValue: msg.value,
-                targetCallData: targetCallData
+                target: callParam.target,
+                targetCallValue: callParam.value,
+                targetCallData: callParam.data
             })
         );
 
         IUniswapV3Pool(pool).flash(address(this), amount0, amount1, flash_data);
+
+        uint256 _balance0_after = IERC20(token0).balanceOf(address(this));
+        uint256 _balance1_after = IERC20(token1).balanceOf(address(this));
+        if (_balance0_after > _balance0_before) {
+            TransferHelper.safeTransfer(token0, msg.sender, _balance0_after - _balance0_before);
+        }
+        if (_balance1_after > _balance1_before) {
+            TransferHelper.safeTransfer(token1, msg.sender, _balance1_after - _balance1_before);
+        }
     }
 
     function uniswapV3FlashCallback(uint256 fee0, uint256 fee1, bytes calldata data) external {

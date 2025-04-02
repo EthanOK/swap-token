@@ -30,20 +30,14 @@ contract FlashSwapUniswapV2Test is Test {
 
         attackedFlash = new AttackedFlash();
 
-        vm.deal(owner, 100 ether);
-        vm.deal(user, 100 ether);
-
-        vm.startPrank(owner);
-
-        flashSwapUniswapV2.swapETHForExactTokens{value: 10 ether}(USDT, 1000 * 1e6);
-
-        IERC20(USDT).safeTransfer(address(attackedFlash), 1000 * 1e6);
+        // set ETH balance to user
+        deal(user, 100 ether);
+        // set USDT balance to attackedFlash
+        deal(USDT, address(attackedFlash), 1000 * 1e6);
 
         uint256 balance_attackedFlash = IERC20(USDT).balanceOf(address(attackedFlash));
 
         console.log("balance_attackedFlash", balance_attackedFlash);
-
-        vm.stopPrank();
     }
 
     function test_FlashSwap() public {
@@ -57,19 +51,35 @@ contract FlashSwapUniswapV2Test is Test {
 
         bytes memory data = abi.encode(callParam);
 
+        uint256 amount_debt = 1000 * 1e6;
+
+        uint256 benifit = AttackedFlash(attackedFlash).getBenifit(USDT, amount_debt);
+        uint256 swapFees = getSwapFeesV2(amount_debt);
+        console.log("benifit:", benifit);
+        console.log("swapFees:", swapFees);
+
+        uint256 amount_benifit = benifit - swapFees;
+        console.log("Will earn USDT by flashSwap:", amount_benifit / 1e6, ".", amount_benifit % 1e6);
+
         uint256 usdt_balance_before = IERC20(USDT).balanceOf(address(user));
         console.log("usdt_balance_before:", usdt_balance_before);
 
         console.log("execute flashSwap");
 
-        flashSwapUniswapV2.flashSwap(WETH, USDT, 0, 1000 * 1e6, data);
+        flashSwapUniswapV2.flashSwap(WETH, USDT, 0, amount_debt, data);
 
         console.log("finish flashSwap");
 
         uint256 usdt_balance_after = IERC20(USDT).balanceOf(address(user));
 
-        console.log("usdt_balance_after:", usdt_balance_after);
+        assertEq(amount_benifit, usdt_balance_after - usdt_balance_before);
+
+        console.log("usdt_balance_after:", usdt_balance_after / 1e6, ".", usdt_balance_after % 1e6);
 
         vm.stopPrank();
+    }
+
+    function getSwapFeesV2(uint256 amount) public pure returns (uint256) {
+        return amount * 3 / 997 + 1;
     }
 }
