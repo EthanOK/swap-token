@@ -66,7 +66,7 @@ contract FlashSwapUniswapV2Test is Test {
 
         console.log("execute flashSwap");
 
-        flashSwapUniswapV2.flashSwap(WETH, USDT, 0, amount_debt, data);
+        flashSwapUniswapV2.flashSwapV2(WETH, USDT, 0, amount_debt, data);
 
         console.log("finish flashSwap");
 

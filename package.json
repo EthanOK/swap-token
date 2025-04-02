@@ -13,6 +13,7 @@
     "test ProxyUniswapV2": "forge test --match-contract ProxyUniswapV2Test -vvv",
     "test ProxyUniswapV3": "forge test --match-contract ProxyUniswapV3Test -vvv",
     "test FlashSwapUniswapV2": "forge test --match-contract FlashSwapUniswapV2Test -vvv",
+    "test FlashSwapUniswapV3": "forge test --match-contract FlashSwapUniswapV3Test -vvv",
     "test FlashUniswapV3": "forge test --match-contract FlashUniswapV3Test -vvv"
   },
   "lint-staged": {

@@ -2,12 +2,12 @@
 pragma solidity ^0.8.13;
 
 import {Test, console} from "forge-std/Test.sol";
-import {FlashUniswapV3, TransferHelper} from "../src/FlashUniswapV3.sol";
+import {FlashSwapUniswapV3, TransferHelper} from "../src/FlashSwapUniswapV3.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {AttackedFlash} from "./demo/AttackedFlash.sol";
 
-contract FlashUniswapV3Test is Test {
-    FlashUniswapV3 public flashUniswapV3;
+contract FlashSwapUniswapV3Test is Test {
+    FlashSwapUniswapV3 public flashSwapUniswapV3;
 
     AttackedFlash public attackedFlash;
 
@@ -24,45 +24,44 @@ contract FlashUniswapV3Test is Test {
 
     function setUp() public {
         vm.createSelectFork("https://1rpc.io/eth");
-        flashUniswapV3 = new FlashUniswapV3(uniswapV3Factory, swapRouter, owner);
+        flashSwapUniswapV3 = new FlashSwapUniswapV3(uniswapV3Factory, owner);
 
         attackedFlash = new AttackedFlash();
 
         deal(user, 100 ether);
 
-        deal(USDT, address(attackedFlash), 1000 * 1e6);
+        deal(USDT, address(attackedFlash), 10000 * 1e6);
     }
 
     function test_FlashSwap() public {
         vm.startPrank(user);
 
-        uint256 amount_debt = 1000 * 1e6;
+        uint256 amountIn_usdt = 1000 * 1e6;
 
-        uint256 benifit = AttackedFlash(attackedFlash).getBenifit(USDT, amount_debt);
-        uint256 flashFees = getSwapFeesV3(amount_debt, 500);
-        console.log("benifit:", benifit);
-        console.log("flashFees:", flashFees);
+        uint256 will_get_eth = AttackedFlash(attackedFlash).getETHByUSDT(amountIn_usdt);
 
-        uint256 amount_benifit = benifit - flashFees;
-        console.log("Will earn USDT by flash loan:", amount_benifit / 1e6, ".", amount_benifit % 1e6);
+        console.log("will_get_eth:", will_get_eth);
 
-        uint256 usdt_balance_before = IERC20(USDT).balanceOf(address(user));
-        console.log("usdt_balance_before:", usdt_balance_before);
+        uint256 will_get_usdt = AttackedFlash(attackedFlash).swapWETHForUSDT_ETH_CALLL(will_get_eth);
 
-        FlashUniswapV3.CallParam memory callParam = FlashUniswapV3.CallParam({
+        uint256 amount_benifit = will_get_usdt - amountIn_usdt;
+
+        console.log("Will earn USDT by flash swap:", amount_benifit / 1e6, ".", amount_benifit % 1e6);
+
+        FlashSwapUniswapV3.CallParam memory callParam = FlashSwapUniswapV3.CallParam({
             target: address(attackedFlash),
             value: 0,
-            data: abi.encodeWithSelector(AttackedFlash.withdraw.selector, address(USDT))
+            data: abi.encodeWithSelector(AttackedFlash.swapWETHForUSDT.selector, will_get_eth)
         });
 
-        console.log("execute flash loan");
+        console.log("execute flashSwap");
 
-        flashUniswapV3.flash(WETH, USDT, 0, amount_debt, 500, abi.encode(callParam));
+        flashSwapUniswapV3.flashSwapV3(WETH, USDT, 0, amountIn_usdt, 500, abi.encode(callParam));
 
-        console.log("finish flash loan");
+        console.log("finish flashSwap");
 
         uint256 usdt_balance_after = IERC20(USDT).balanceOf(address(user));
-        assertEq(amount_benifit, usdt_balance_after - usdt_balance_before);
+        assertEq(amount_benifit, usdt_balance_after);
 
         console.log("usdt_balance_after:", usdt_balance_after / 1e6, ".", usdt_balance_after % 1e6);
 

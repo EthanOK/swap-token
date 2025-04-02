@@ -29,33 +29,7 @@ contract FlashSwapUniswapV2 is IUniswapV2Callee, Ownable {
         uniswapRouter = IUniswapV2Router02(_uniswapRouter);
     }
 
-    function swapETHForExactTokens(address tokenOut, uint256 amountOut) external payable returns (uint256) {
-        require(msg.value > 0, "Invalid amountIn");
-
-        require(amountOut > 0, "Invalid amountOut");
-        require(tokenOut != address(0), "Invalid tokenOut address");
-
-        address[] memory path = new address[](2);
-        path[0] = uniswapRouter.WETH();
-        path[1] = tokenOut;
-
-        uint256 balanceBefore = IERC20(tokenOut).balanceOf(address(this));
-
-        uint256[] memory amounts = uniswapRouter.getAmountsIn(amountOut, path);
-        require(amounts[0] <= msg.value, "FlashSwapUniswapV2: EXCESSIVE_INPUT_AMOUNT");
-
-        uniswapRouter.swapETHForExactTokens{value: msg.value}(
-            amountOut, path, address(msg.sender), block.timestamp + 60
-        );
-
-        uint256 balanceAfter = IERC20(tokenOut).balanceOf(address(this));
-
-        if (msg.value > amounts[0]) TransferHelper.safeTransferETH(msg.sender, msg.value - amounts[0]);
-
-        return balanceAfter - balanceBefore;
-    }
-
-    function flashSwap(address _token0, address _token1, uint256 _amount0, uint256 _amount1, bytes calldata data)
+    function flashSwapV2(address _token0, address _token1, uint256 _amount0, uint256 _amount1, bytes calldata data)
         external
         payable
     {
