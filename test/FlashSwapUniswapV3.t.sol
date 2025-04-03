@@ -30,13 +30,13 @@ contract FlashSwapUniswapV3Test is Test {
 
         deal(user, 100 ether);
 
-        deal(USDT, address(attackedFlash), 10000 * 1e6);
+        deal(USDT, address(attackedFlash), 100000 * 1e6);
     }
 
     function test_FlashSwap() public {
         vm.startPrank(user);
 
-        uint256 amountIn_usdt = 1000 * 1e6;
+        uint256 amountIn_usdt = 10000 * 1e6;
 
         uint256 will_get_eth = AttackedFlash(attackedFlash).getETHByUSDT(amountIn_usdt);
 
@@ -56,6 +56,13 @@ contract FlashSwapUniswapV3Test is Test {
 
         console.log("execute flashSwap");
 
+        // pool0 WETH/USDT = 2000
+        // pool1 WETH/USDT = 2100
+
+        // swap amountIn USDT to WETH in pool0
+        // use some WETH get more USDT (swap WETH for USDT in pool1) in `uniswapV3SwapCallback`
+        // repay amountIn USDT
+        // remainning USDT will be transfer to user
         flashSwapUniswapV3.flashSwapV3(WETH, USDT, 0, amountIn_usdt, 500, abi.encode(callParam));
 
         console.log("finish flashSwap");

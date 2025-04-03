@@ -66,6 +66,10 @@ contract FlashSwapUniswapV2Test is Test {
 
         console.log("execute flashSwap");
 
+        // obtain amountOut USDT
+        // use some USDT get more USDT in `uniswapV2Call`
+        // repay amountOut + fee USDT
+        // remainning USDT will be transfer to user
         flashSwapUniswapV2.flashSwapV2(WETH, USDT, 0, amount_debt, data);
 
         console.log("finish flashSwap");
