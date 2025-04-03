@@ -44,7 +44,7 @@ contract FlashUniswapV3Test is Test {
         console.log("flashFees:", flashFees);
 
         uint256 amount_benifit = benifit - flashFees;
-        console.log("Will earn USDT by flash:", amount_benifit / 1e6, ".", amount_benifit % 1e6);
+        console.log("Will earn USDT by flash loan:", amount_benifit / 1e6, ".", amount_benifit % 1e6);
 
         uint256 usdt_balance_before = IERC20(USDT).balanceOf(address(user));
         console.log("usdt_balance_before:", usdt_balance_before);
@@ -55,11 +55,11 @@ contract FlashUniswapV3Test is Test {
             data: abi.encodeWithSelector(AttackedFlash.withdraw.selector, address(USDT))
         });
 
-        console.log("execute flashSwap");
+        console.log("execute flash loan");
 
         flashUniswapV3.flash(WETH, USDT, 0, amount_debt, 500, abi.encode(callParam));
 
-        console.log("finish flashSwap");
+        console.log("finish flash loan");
 
         uint256 usdt_balance_after = IERC20(USDT).balanceOf(address(user));
         assertEq(amount_benifit, usdt_balance_after - usdt_balance_before);

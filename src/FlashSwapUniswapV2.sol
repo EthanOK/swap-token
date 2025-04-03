@@ -29,36 +29,23 @@ contract FlashSwapUniswapV2 is IUniswapV2Callee, Ownable {
         uniswapRouter = IUniswapV2Router02(_uniswapRouter);
     }
 
-    function swapETHForExactTokens(address tokenOut, uint256 amountOut) external payable returns (uint256) {
-        require(msg.value > 0, "Invalid amountIn");
-
-        require(amountOut > 0, "Invalid amountOut");
-        require(tokenOut != address(0), "Invalid tokenOut address");
-
-        address[] memory path = new address[](2);
-        path[0] = uniswapRouter.WETH();
-        path[1] = tokenOut;
-
-        uint256 balanceBefore = IERC20(tokenOut).balanceOf(address(this));
-
-        uint256[] memory amounts = uniswapRouter.getAmountsIn(amountOut, path);
-        require(amounts[0] <= msg.value, "FlashSwapUniswapV2: EXCESSIVE_INPUT_AMOUNT");
-
-        uniswapRouter.swapETHForExactTokens{value: msg.value}(
-            amountOut, path, address(msg.sender), block.timestamp + 60
-        );
-
-        uint256 balanceAfter = IERC20(tokenOut).balanceOf(address(this));
-
-        if (msg.value > amounts[0]) TransferHelper.safeTransferETH(msg.sender, msg.value - amounts[0]);
-
-        return balanceAfter - balanceBefore;
-    }
-
-    function flashSwap(address _token0, address _token1, uint256 _amount0, uint256 _amount1, bytes calldata data)
-        external
-        payable
-    {
+    /// @notice Flash swap tokens on Uniswap V2
+    /// @dev obtain amountOut token_i
+    /// @dev use some token_i get more token_i in `uniswapV2Call`
+    /// @dev repay (amountOut + swapFee) token_i
+    /// @dev remainning USDT will be transfer to user
+    /// @param _token0 The token to swap
+    /// @param _token1 The token to swap
+    /// @param _amountOut0 The amount of token0 to obtain
+    /// @param _amountOut1 The amount of token1 to obtain
+    /// @param _data Any data passed through by the caller
+    function flashSwapV2(
+        address _token0,
+        address _token1,
+        uint256 _amountOut0,
+        uint256 _amountOut1,
+        bytes calldata _data
+    ) external payable {
         address pair = factory.getPair(_token0, _token1);
         require(pair != address(0), "Pair does not exist");
         address token0_ = IUniswapV2Pair(pair).token0();
@@ -68,7 +55,10 @@ contract FlashSwapUniswapV2 is IUniswapV2Callee, Ownable {
         uint256 _balance1_before = IERC20(token1_).balanceOf(address(this));
 
         IUniswapV2Pair(pair).swap(
-            token0_ == _token0 ? _amount0 : _amount1, token1_ == _token1 ? _amount1 : _amount0, address(this), data
+            token0_ == _token0 ? _amountOut0 : _amountOut1,
+            token1_ == _token1 ? _amountOut1 : _amountOut0,
+            address(this),
+            _data
         );
 
         uint256 _balance0_after = IERC20(token0_).balanceOf(address(this));
