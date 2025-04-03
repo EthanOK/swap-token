@@ -14,7 +14,8 @@
     "test ProxyUniswapV3": "forge test --match-contract ProxyUniswapV3Test -vvvv",
     "test FlashSwapUniswapV2": "forge test --match-contract FlashSwapUniswapV2Test -vvvv",
     "test FlashSwapUniswapV3": "forge test --match-contract FlashSwapUniswapV3Test -vvvv",
-    "test FlashUniswapV3": "forge test --match-contract FlashUniswapV3Test -vvvv"
+    "test FlashUniswapV3": "forge test --match-contract FlashUniswapV3Test -vvvv",
+    "test OptimalOneSideUniswapV2": "forge test --match-contract OptimalOneSideUniswapV2Test -vvvv"
   },
   "lint-staged": {
     "*.sol": [
