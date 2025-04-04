@@ -23,6 +23,14 @@ contract OptimalOneSideUniswapV2 {
         pair = factory.getPair(tokenA, tokenB);
     }
     /// @notice add liquidity optimal one side
+    /// @dev a: amountIn
+    /// @dev s: optimal swap amount
+    /// @dev f: fee
+    /// @dev r0: tokenIn reserve
+    /// @dev r1: tokenOut reserve
+    /// @dev swap: `r0*r1 = (r0 + s(1 - f))*(r1 - b)` base on `x * y = k`
+    /// @dev addLiquidity: `(a - s) / (r0 + s) = b / (r1 - b)` base on `Dx / Rx = Dy / Ry = Dl / Rl`
+    /// @dev s = [sqrt(((2 - f)r)^2 + 4(1 - f)ar) - (2 - f)r] / [2(1 - f)]
     /// @param tokenIn tokenIn
     /// @param tokenOut tokenOut
     /// @param amountIn amountIn
@@ -78,8 +86,6 @@ contract OptimalOneSideUniswapV2 {
 
         // IERC20(tokenIn).balanceOf(address(this));
         // IERC20(tokenOut).balanceOf(address(this));
-
-        return liquidity;
     }
 
     function getOptimalSwapAmount(uint256 amountIn, uint256 reserveIn) public pure returns (uint256) {

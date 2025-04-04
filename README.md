@@ -1,8 +1,8 @@
 # swap token
 
-## uniswap v2 swap proxy
+[docs](./docs/src/SUMMARY.md)
 
-[ProxyUniswapV2](./src/ProxyUniswapV2.sol)
+## uniswap v2 swap proxy
 
 [router-02](https://docs.uniswap.org/contracts/v2/reference/smart-contracts/router-02)
 
@@ -103,3 +103,7 @@ fee  >=  amount1Out * 3/997;
         }
     }
 ```
+
+## uniswap v3 swap proxy
+
+[uniswap v3 docs](https://docs.uniswap.org/contracts/v3/overview)

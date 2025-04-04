@@ -9,6 +9,7 @@
   },
   "scripts": {
     "prepare": "husky install",
+    "doc": "forge doc",
     "test all": "forge test -vvv",
     "test ProxyUniswapV2": "forge test --match-contract ProxyUniswapV2Test -vvvv",
     "test ProxyUniswapV3": "forge test --match-contract ProxyUniswapV3Test -vvvv",
