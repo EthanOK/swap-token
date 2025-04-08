@@ -13,6 +13,7 @@
     "test all": "forge test -vvv",
     "test ProxyUniswapV2": "forge test --match-contract ProxyUniswapV2Test -vvvv",
     "test ProxyUniswapV3": "forge test --match-contract ProxyUniswapV3Test -vvvv",
+    "test ProxyUniswapV4": "forge test --match-contract ProxyUniswapV4Test -vvvv",
     "test FlashSwapUniswapV2": "forge test --match-contract FlashSwapUniswapV2Test -vvvv",
     "test FlashSwapUniswapV3": "forge test --match-contract FlashSwapUniswapV3Test -vvvv",
     "test FlashUniswapV3": "forge test --match-contract FlashUniswapV3Test -vvvv",
