@@ -107,3 +107,6 @@ fee  >=  amount1Out * 3/997;
 ## uniswap v3 swap proxy
 
 [uniswap v3 docs](https://docs.uniswap.org/contracts/v3/overview)
+
+## uniswap v4 swap proxy
+[uniswap v4 docs](https://docs.uniswap.org/contracts/v4/overview)
