@@ -45,7 +45,7 @@ contract ProxyUniswapV3Test is Test {
 
         (uint256 amountOut,,,) = IQuoterV2(quoterV2).quoteExactInputSingle(quoterParams);
 
-        console.log("ETH/USDT: ", amountOut);
+        console.log("UniswapV3 ETH/USDT: ", amountOut);
 
         console.log("user Pay 1 ETH");
 

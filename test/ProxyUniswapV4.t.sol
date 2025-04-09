@@ -8,13 +8,14 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IHooks} from "@uniswap/v4-core/src/interfaces/IHooks.sol";
 import {IPermit2} from "@uniswap/permit2/src/interfaces/IPermit2.sol";
 import {TransferHelper} from "../src/libraries/TransferHelper.sol";
+import {IV4Quoter} from "@uniswap/v4-periphery/src/interfaces/IV4Quoter.sol";
 
 contract ProxyUniswapV4Test is Test {
     ProxyUniswapV4 public proxy;
 
     address public constant universalRouter = 0x66a9893cC07D91D95644AEDD05D03f95e1dBA8Af;
     address public constant permit2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
-    address public constant poolManager = 0x0000000000000000000000000000000000000000;
+    address public constant quoterV4 = 0x52F0E24D1c21C8A0cB1e5a5dD6198556BD9E1203;
 
     address public constant ZERO = 0x0000000000000000000000000000000000000000;
     address public constant USDT = 0xdAC17F958D2ee523a2206206994597C13D831ec7;
@@ -35,6 +36,26 @@ contract ProxyUniswapV4Test is Test {
         // set user balance
         deal(user, 100 ether);
         deal(USDT, user, 10000 * 1e6);
+
+        PoolKey memory poolKey = PoolKey({
+            currency0: Currency.wrap(ZERO),
+            currency1: Currency.wrap(USDT),
+            fee: 500,
+            tickSpacing: 10,
+            hooks: IHooks(address(0))
+        });
+
+        IV4Quoter quoter = IV4Quoter(quoterV4);
+
+        (uint256 amountOut,) = quoter.quoteExactInputSingle(
+            IV4Quoter.QuoteExactSingleParams({
+                poolKey: poolKey,
+                zeroForOne: true,
+                exactAmount: 1 ether,
+                hookData: bytes("")
+            })
+        );
+        console.log("UniswapV4 ETH/USDT: ", amountOut / 1e6, ".", amountOut % 1e6);
     }
 
     function test_SwapExactETHForTokenWithFee() public {
