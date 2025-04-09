@@ -34,8 +34,12 @@ contract ProxyUniswapV4Test is Test {
         proxy = new ProxyUniswapV4(universalRouter, permit2, owner);
 
         // set user balance
+        deal(owner, 100 ether);
         deal(user, 100 ether);
         deal(USDT, user, 10000 * 1e6);
+
+        vm.prank(owner);
+        proxy.setFeePercent(5000); // 10_000
 
         PoolKey memory poolKey = PoolKey({
             currency0: Currency.wrap(ZERO),
@@ -77,7 +81,34 @@ contract ProxyUniswapV4Test is Test {
 
         proxy.swapExactInputSingle{value: amountIn}(poolKey, zeroForOne, uint128(amountIn), 0, recipient);
 
-        console.log("Deduct %d % Proxy Fees After:", proxy.feePercent());
+        console.log("Deduct %d/%d Proxy Fees After:", proxy.feePercent(), proxy.FEE_DENOMINATOR());
+
+        uint256 balance_recipient = IERC20(USDT).balanceOf(recipient);
+
+        console.log("recipient Get USDT: ", balance_recipient / 1e6, ".", balance_recipient % 1e6);
+        vm.stopPrank();
+    }
+
+    function test_SwapExactETHForTokenOfficialWithFee() public {
+        vm.startPrank(user);
+
+        uint256 amountIn = 1 ether;
+
+        console.log("user Pay 1 ETH");
+
+        PoolKey memory poolKey = PoolKey({
+            currency0: Currency.wrap(ZERO),
+            currency1: Currency.wrap(USDT),
+            fee: 500,
+            tickSpacing: 10,
+            hooks: IHooks(address(0))
+        });
+
+        bool zeroForOne = true;
+
+        proxy.swapExactInputSingleOfficial{value: amountIn}(poolKey, zeroForOne, uint128(amountIn), 0, recipient);
+
+        console.log("Deduct %d/%d Proxy Fees After:", proxy.feePercent(), proxy.FEE_DENOMINATOR());
 
         uint256 balance_recipient = IERC20(USDT).balanceOf(recipient);
 
@@ -107,7 +138,37 @@ contract ProxyUniswapV4Test is Test {
 
         proxy.swapExactInputSingle(poolKey, zeroForOne, uint128(amountIn), 0, recipient);
 
-        console.log("Deduct %d % Proxy Fees After:", proxy.feePercent());
+        console.log("Deduct %d/%d Proxy Fees After:", proxy.feePercent(), proxy.FEE_DENOMINATOR());
+
+        uint256 balance_recipient = recipient.balance;
+        console.log("recipient Get ETH: ", balance_recipient / 1e18, ".", balance_recipient % 1e18);
+
+        vm.stopPrank();
+    }
+
+    function test_SwapExactTokenForETHOfficialWithFee() public {
+        vm.startPrank(user);
+
+        uint256 amountIn = 2000 * 1e6;
+
+        console.log("user Pay 2000 USDT");
+
+        // approve USDT to proxy
+        TransferHelper.safeApprove(USDT, address(proxy), amountIn);
+
+        PoolKey memory poolKey = PoolKey({
+            currency0: Currency.wrap(ZERO),
+            currency1: Currency.wrap(USDT),
+            fee: 500,
+            tickSpacing: 10,
+            hooks: IHooks(address(0))
+        });
+
+        bool zeroForOne = false;
+
+        proxy.swapExactInputSingleOfficial(poolKey, zeroForOne, uint128(amountIn), 0, recipient);
+
+        console.log("Deduct %d/%d Proxy Fees After:", proxy.feePercent(), proxy.FEE_DENOMINATOR());
 
         uint256 balance_recipient = recipient.balance;
         console.log("recipient Get ETH: ", balance_recipient / 1e18, ".", balance_recipient % 1e18);
