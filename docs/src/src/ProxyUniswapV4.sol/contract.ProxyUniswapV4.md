@@ -1,5 +1,5 @@
 # ProxyUniswapV4
-[Git Source](https://github.com/EthanOK/swap-token/blob/a325d2d1a567d66af0e4cebf776dc8dd9b1a5d51/src/ProxyUniswapV4.sol)
+[Git Source](https://github.com/EthanOK/swap-token/blob/a2aa2546e6929eba7509523938fdff83b022530a/src/ProxyUniswapV4.sol)
 
 **Inherits:**
 Ownable
@@ -30,14 +30,14 @@ IPermit2 public immutable permit2;
 ### feePercent
 
 ```solidity
-uint256 public feePercent = 50;
+uint256 public feePercent = 5_000;
 ```
 
 
-### feeBase
+### FEE_DENOMINATOR
 
 ```solidity
-uint256 public feeBase = 100;
+uint256 public constant FEE_DENOMINATOR = 10_000;
 ```
 
 
@@ -53,7 +53,7 @@ constructor(address _router, address _permit2, address _initialOwner) Ownable(_i
 
 
 ```solidity
-function setFeePercent(uint256 _percent, uint256 _base) external onlyOwner;
+function setFeePercent(uint256 _percent) external onlyOwner;
 ```
 
 ### swapExactInputSingle
@@ -61,6 +61,19 @@ function setFeePercent(uint256 _percent, uint256 _base) external onlyOwner;
 
 ```solidity
 function swapExactInputSingle(
+    PoolKey calldata key,
+    bool zeroForOne,
+    uint128 amountIn,
+    uint128 amountOutMin,
+    address recipient
+) external payable returns (uint256 amountOut);
+```
+
+### swapExactInputSingleOfficial
+
+
+```solidity
+function swapExactInputSingleOfficial(
     PoolKey calldata key,
     bool zeroForOne,
     uint128 amountIn,
